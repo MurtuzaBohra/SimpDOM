@@ -7,7 +7,7 @@ Keywords: structured data extraction, web information extraction, Simplified DOM
 
 Implementation is in pytorch.
 
-Trained weights on SWDE dataset (auto- vertical) are available here - https://drive.google.com/file/d/1DMH8mMEnRkDarrZFyY34ZsURiMN9Pg5v/view?usp=sharing
+Trained weights on SWDE dataset (auto- vertical) are available here - https://drive.google.com/file/d/1aMuHb8RT_GrKr6VoUvmDsObEwIqypkHy/view?usp=sharing
 
 In order to execute test.ipynb notebook, download the file and unzip in "data" folder.
 
