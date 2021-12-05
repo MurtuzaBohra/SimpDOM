@@ -63,12 +63,12 @@ def main(Datapath, vertical, attributes):
 	for website in websites:
 		# if website == 'auto-motortrend':
 		print(website)
-		nodesDetailsAllPages = pickle.load(open('{}/nodesDetails_with_friendCircle/{}.pkl'.format(Datapath, website), 'rb'))
+		nodesDetailsAllPages = pickle.load(open('{}/nodesDetails/{}.pkl'.format(Datapath, website), 'rb'))
 		for attribute in attributes:
 			groundTruth = _read_groundTruth(Datapath, vertical, website, attribute)
 			nodesDetailsAllPages, annotation_statistics = _annotate_gt(nodesDetailsAllPages, groundTruth, label_indices[attribute], annotation_statistics, website, attribute)
-		pickle.dump(nodesDetailsAllPages, open('{}/website-wise-node-details/{}.pkl'.format(Datapath, website), 'wb'))
-	annotation_statistics.to_csv('{}/website-wise-node-details/annotation_statistics.csv'.format(Datapath), index=False)
+		pickle.dump(nodesDetailsAllPages, open('{}/nodesDetails/{}.pkl'.format(Datapath, website), 'wb'))
+	#annotation_statistics.to_csv('{}/nodesDetails/annotation_statistics.csv'.format(Datapath), index=False)
 
 if __name__ == "__main__":
 	main(Datapath, vertical, websites, attributes)
