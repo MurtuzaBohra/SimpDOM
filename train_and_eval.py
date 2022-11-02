@@ -13,7 +13,7 @@ from Model.SimpDOM_model import SeqModel
 from Prediction.test_step import main as get_predictions
 from Prediction.PRSummary import cal_PR_summary as pageLevel_cal_PR_summary
 from Prediction.WebsiteLevel_PR_Generator import cal_PR_summary as websiteLevel_cal_PR_summary
-
+from Utils.logger import logger
 
 datapath = './data'
 random.seed(7)
@@ -33,9 +33,10 @@ pos_emb_dim = 20
 word_emb_filename= '{}/glove.6B.100d.txt'.format(datapath)
 
 def load_dict(fname):
+    logger.info(f'Loading {fname}')
     Dict = pickle.load(open(fname,'rb'))
+    logger.info(f'Dictionary {fname} length: {len(Dict)}')
     return Dict
-
 
 def train(websites, attributes):
     train_websites, val_websites = websites[:1], websites[1:]
@@ -44,10 +45,10 @@ def train(websites, attributes):
     n_classes = len(attributes)+1
     class_weights = [1,100,100,100,100]
 
-    charDict = load_dict('{}/English_charDict.pkl'.format(datapath))
-    tagDict = load_dict('{}/HTMLTagDict.pkl'.format(datapath))
-    print(len(charDict), len(tagDict))
-        
+    charDict = load_dict(f'{datapath}/English_charDict.pkl')
+    tagDict = load_dict(f'{datapath}/HTMLTagDict.pkl')
+
+    logger.info('Instantiating the Model checkpoint.')
     checkpoint_callback = ModelCheckpoint(
         filename='./data/weights',
         save_top_k=1,
@@ -57,6 +58,7 @@ def train(websites, attributes):
         mode='min'
     )
     
+    logger.info('Instantiating the Sequential model')
     config = {
         'out_dim': n_classes,
         'train_websites': train_websites,
@@ -78,10 +80,17 @@ def train(websites, attributes):
         'word_emb_filename': word_emb_filename
     }
     model = SeqModel(config)
+
+    logger.info('Instantiating the Training object')
     trainer = pl.Trainer(gpus=n_gpus, max_epochs=1, callbacks=[checkpoint_callback])
+
+    logger.info('Fitting the model')
     trainer.fit(model)
     
+    logger.info('Saving the check point')
     trainer.save_checkpoint("weights_wpix_manual_ckpt.ckpt")
+
+    logger.info('Re-loading the Sequential model from Checkpoint')
     model = SeqModel.load_from_checkpoint("weights_wpix_manual_ckpt.ckpt",config=config)
     model = model.to(device)
 

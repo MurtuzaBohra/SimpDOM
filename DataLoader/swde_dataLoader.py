@@ -55,14 +55,14 @@ def _get_Text_representation(text):
 def loadDataset( websites, isValidataion, datapath='/tmp'):
     nodes = {}
     sample_idx = 0
-    for website in websites:
-        key = '{}/nodesDetails/{}.pkl'.format(datapath, website)
+    for website in tqdm(websites, desc='Web sites'):
+        key = f'{datapath}/nodesDetails/{website}.pkl'
         data = pickle.load(open(key,'rb'))
         pageIDs = list(data.keys())
         random.shuffle(pageIDs)
         if isValidataion:
             pageIDs = pageIDs[:int(len(pageIDs)*0.1)]
-        for pageID in pageIDs:
+        for pageID in tqdm(pageIDs, desc='Web pages'):
             nodeIDs = list(data[pageID].keys())
             max_nodeID = max(nodeIDs)
             for nodeID in nodeIDs:
@@ -148,7 +148,7 @@ class swde_data(Dataset):
         # self.nodes = self.loadDataset(datasetS3Bucket)
         
         self.len = len(self.nodes)
-        print(' {} - nodes are loaded in swde_dataLoader'.format(self.len))
+        logger.info(f'SWDE data loader has loaded: {self.len} nodes')
 
     def __getitem__(self, index):
         #self.nodes[index] = (nodeText, friendsText, partnerText, label)
@@ -170,7 +170,7 @@ def loadDataset_test( websites, datapath='/tmp'):
     raw_nodes = {}
     sample_idx = 0
     for website in tqdm(websites, desc='Web site'):
-        key = '{}/nodesDetails/{}.pkl'.format(datapath, website)
+        key = '{datapath}/nodesDetails/{website}.pkl'
         data = pickle.load(open(key,'rb'))
         pageIDs = list(data.keys())
         for pageID in tqdm(pageIDs, desc='Web pages'):
