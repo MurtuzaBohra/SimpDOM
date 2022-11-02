@@ -7,3 +7,5 @@ data/fixedNodes_camera.csv
 data/.DS_Store
 **/__pycache__/
 .ipynb_checkpoints/
+lightning_logs/
+weights_wpix_manual_ckpt.ckpt
