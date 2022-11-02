@@ -19,7 +19,7 @@ datapath = './data'
 random.seed(7)
 device = 'cpu'
 
-n_workers=0
+n_workers=0 # Must be 0 to prevent shared memory issues!
 n_gpus=0
 char_emb_dim = 16
 char_hid_dim = 100
