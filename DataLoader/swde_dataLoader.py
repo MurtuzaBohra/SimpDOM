@@ -3,9 +3,11 @@ import numpy as np
 import re
 import torch
 import random
+from tqdm.notebook import tqdm
 from torch.utils.data.dataset import Dataset
 from DataLoader.utils import sort_and_pad, padded_tensor
 from DatasetCreation.namedTuples import DataLoaderNodeDetail
+from Utils.logger import logger
 
 charDict ={}
 tagDict ={}
@@ -167,11 +169,11 @@ def loadDataset_test( websites, datapath='/tmp'):
     nodes = {}
     raw_nodes = {}
     sample_idx = 0
-    for website in websites:
+    for website in tqdm(websites, desc='Web site'):
         key = '{}/nodesDetails/{}.pkl'.format(datapath, website)
         data = pickle.load(open(key,'rb'))
         pageIDs = list(data.keys())
-        for pageID in pageIDs:
+        for pageID in tqdm(pageIDs, desc='Web pages'):
             nodeIDs = list(data[pageID].keys())
             max_nodeID = max(nodeIDs)
             for nodeID in nodeIDs:
@@ -231,6 +233,7 @@ class swde_data_test(Dataset):
         charDict = cDict
         tagDict = tDict
         self.WordEmeddings = WordEmeddings
+        logger.info(f'Start loading data set for websites: {self.websites}')
         self.nodes, self.raw_nodes = loadDataset_test(self.websites, datapath)
         # self.nodes = self.loadDataset(datasetS3Bucket)
         
