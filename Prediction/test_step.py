@@ -58,7 +58,7 @@ def main(test_dataset, model, Device, PROB_THRESHOLD):
     for batch_idx, batch in enumerate(test_dataset):
         labels, preds, preds_probs, raw_nodes = test_step_SimpDOM(model, batch, batch_idx)
         df_temp, preds = create_results_df(labels, preds, preds_probs, raw_nodes, PROB_THRESHOLD)
-        df = df.append(df_temp)
+        df = pd.concat([df, df_temp])
     return df
 
 

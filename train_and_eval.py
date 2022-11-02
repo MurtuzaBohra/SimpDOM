@@ -19,7 +19,7 @@ datapath = './data'
 random.seed(7)
 device = 'cpu'
 
-n_workers=2
+n_workers=0
 n_gpus=0
 char_emb_dim = 16
 char_hid_dim = 100
@@ -78,7 +78,7 @@ def train(websites, attributes):
         'word_emb_filename': word_emb_filename
     }
     model = SeqModel(config)
-    trainer = pl.Trainer(gpus=n_gpus, max_epochs=1, checkpoint_callback=checkpoint_callback)
+    trainer = pl.Trainer(gpus=n_gpus, max_epochs=1, callbacks=[checkpoint_callback])
     trainer.fit(model)
     
     trainer.save_checkpoint("weights_wpix_manual_ckpt.ckpt")
