@@ -1,1 +1,9 @@
 **/.DS_Store
+data/auto
+data/nodesDetails
+data/weights.ckpt
+data/glove.6B.100d.txt
+data/fixedNodes_camera.csv
+data/.DS_Store
+**/__pycache__/
+.ipynb_checkpoints/
