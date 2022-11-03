@@ -18,18 +18,30 @@ random.seed(7)
 #----------------------------------------------------------------------
 #----------------------------------------------------------------------
 
+__char_seq_cach = dict()
+
 def _get_char_seq(text):
     text = text.lower()
-    char_seq = []
-    if len(text)==0:
-        return torch.tensor([len(charDict)+1])
-    for char in str(text):
-        try:
-            char_index = charDict[char]
-        except:
-            char_index = len(charDict)+1
-        char_seq.append(char_index)
-    return torch.tensor(char_seq)
+    
+    # Look up inside the cache
+    char_seq_tensor = __char_seq_cach.get(text, None)
+    
+    if char_seq_tensor is None:
+        char_seq = []
+        if len(text)==0:
+            return torch.tensor([len(charDict)+1])
+        for char in str(text):
+            try:
+                char_index = charDict[char]
+            except:
+                char_index = len(charDict)+1
+            char_seq.append(char_index)
+
+        # Compute the tensor and store it
+        char_seq_tensor = torch.tensor(char_seq)
+        __char_seq_cach[text] = char_seq_tensor
+    
+    return char_seq_tensor
 
 def _get_xpath_seq(absxpath):
     xpath_seq = []

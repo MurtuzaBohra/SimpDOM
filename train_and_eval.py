@@ -19,7 +19,7 @@ datapath = './data'
 random.seed(7)
 device = 'cpu'
 
-n_workers=0 # Must be 0 to prevent shared memory issues!
+n_workers=0 # Important to keep this at zero as otherwise we get a shared memory error
 n_gpus=0
 char_emb_dim = 16
 char_hid_dim = 100
@@ -101,7 +101,7 @@ def test(val_websites, charDict, tagDict, model, n_classes):
     WordEmeddings = pretrainedWordEmeddings(word_emb_filename)
     test_dataset = DataLoader(dataset = swde_data_test(val_websites, datapath, charDict, \
                                       tagDict, n_gpus, WordEmeddings), num_workers=n_workers, \
-                                      batch_size=32, shuffle=False, collate_fn = collate_fn_test)
+                                      batch_size=32, shuffle=False, pin_memory = True, collate_fn = collate_fn_test)
     model = model.eval()
     df = get_predictions(test_dataset, model, device, 0.7)
     avg_p_r_f1_dict = pageLevel_cal_PR_summary(df, n_classes)

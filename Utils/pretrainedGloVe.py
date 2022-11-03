@@ -1,3 +1,4 @@
+import string
 import numpy as np
 from Utils.logger import logger
 
@@ -23,10 +24,11 @@ class pretrainedWordEmeddings:
         return word2embeddings
     
     def get_embedding(self, word):
+        word = word.lower().strip(string.punctuation)
         try:
             embedding = self.word2embeddings[word]
         except:
-            logger.warning(f'Could not find word embedding for: {word}, using zeros!');
+            logger.debug(f'Could not find word embedding for: "{word}", using zeros!');
             embedding = np.zeros((100)).astype('float32')
         
         return embedding
