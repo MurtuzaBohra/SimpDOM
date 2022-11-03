@@ -64,7 +64,5 @@ def main(test_dataset, model, Device, PROB_THRESHOLD):
         batch_idx += 1
     return df
 
-
-
 if __name__ == "__main__":
     main(test_dataset, model, s3_bucket, results_s3path)
