@@ -3,6 +3,7 @@ import torch
 import pickle
 import pandas as pd
 import torch.nn.functional as F
+from tqdm.notebook import tqdm
 from DataLoader.swde_dataLoader import swde_data_test, collate_fn_test
 
 PROB_THRESHOLD = 0.4
@@ -55,10 +56,12 @@ def main(test_dataset, model, Device, PROB_THRESHOLD):
     global device
     device = Device
     df = pd.DataFrame()
-    for batch_idx, batch in enumerate(test_dataset):
+    batch_idx = 0
+    for batch in tqdm(test_dataset, desc='Testing batches'):
         labels, preds, preds_probs, raw_nodes = test_step_SimpDOM(model, batch, batch_idx)
         df_temp, preds = create_results_df(labels, preds, preds_probs, raw_nodes, PROB_THRESHOLD)
         df = pd.concat([df, df_temp])
+        batch_idx += 1
     return df
 
 
