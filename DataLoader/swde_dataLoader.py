@@ -13,7 +13,7 @@ charDict ={}
 tagDict ={}
 N_GPUS=1
 MAX_SENT_LEN = 15
-MAX_POS =99# range of relative position
+MAX_POS =99 # range of relative position
 random.seed(7)
 #----------------------------------------------------------------------
 #----------------------------------------------------------------------
@@ -43,14 +43,27 @@ def _get_xpath_seq(absxpath):
             xpath_seq.append(tag_index)
     return torch.tensor(xpath_seq)
 
+UNK_WORD = 'unk'
+UNK_WORDS = [UNK_WORD for _ in range(MAX_SENT_LEN)]
+UNK_WORD_CHAR_SEQS = [_get_char_seq(UNK_WORD) for _ in range(MAX_SENT_LEN)]
+
 def _get_Text_representation(text):
-    words = text.split()
-    max_words = min(MAX_SENT_LEN, len(words))
-    words = words[:max_words]+['ukn' for i in range(MAX_SENT_LEN-max_words)]
-    list_char_sequences = [_get_char_seq(word) for word in words]
-    words_List = words
-    max_words = max(max_words, 1) # this is to ensure sent_len is atleast 1.
-    return list_char_sequences, words_List, max_words
+    # Split into words limiting the sentence length
+    words = text.split()[:MAX_SENT_LEN]
+    
+    # Limit the number of words
+    num_words = len(words)
+    
+    # Get the number of unk words to pad with
+    unk_words_to_add = (MAX_SENT_LEN-num_words)
+    
+    # Pad with 'unk' words
+    words_List = words + UNK_WORDS[:unk_words_to_add]
+    
+    # Get the word character sequences
+    list_char_seqs = [_get_char_seq(word) for word in words] + UNK_WORD_CHAR_SEQS[:unk_words_to_add]
+
+    return list_char_seqs, words_List, max(num_words, 1)
 
 def loadDataset( websites, isValidataion, datapath='/tmp'):
     nodes = {}
