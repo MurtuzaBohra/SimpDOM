@@ -1,19 +1,22 @@
-import pytorch_lightning as pl
-from pytorch_lightning.callbacks import ModelCheckpoint
 import torch
-import torch.nn as nn
-from torch.utils.data import DataLoader
 import pickle
+import random
+
 import numpy as np
 import pandas as pd
-import random
-from Utils.pretrainedGloVe import pretrainedWordEmeddings
-from DataLoader.swde_dataLoader import swde_data_test, collate_fn_test
+import torch.nn as nn
+import pytorch_lightning as pl
+
+from pytorch_lightning.callbacks import ModelCheckpoint
+
+from Utils.logger import logger
+from torch.utils.data import DataLoader
 from Model.SimpDOM_model import SeqModel
 from Prediction.test_step import main as get_predictions
+from Utils.pretrainedGloVe import pretrainedWordEmeddings
+from DataLoader.swde_dataLoader import swde_data_test, collate_fn_test
 from Prediction.PRSummary import cal_PR_summary as pageLevel_cal_PR_summary
 from Prediction.WebsiteLevel_PR_Generator import cal_PR_summary as websiteLevel_cal_PR_summary
-from Utils.logger import logger
 
 datapath = './data'
 random.seed(7)
@@ -38,10 +41,9 @@ def load_dict(fname):
     logger.info(f'Dictionary {fname} length: {len(Dict)}')
     return Dict
 
-def train(websites, attributes):
-    train_websites, val_websites = websites[:1], websites[1:]
-    logger.info( 'Training websites: {train_websites}')
-    logger.info( 'Validation websites: {val_websites}')
+def train(train_websites, val_websites, attributes, num_train_epochs):
+    logger.info(f'Training websites: {train_websites}')
+    logger.info(f'Validation websites: {val_websites}')
     n_classes = len(attributes)+1
     class_weights = [1,100,100,100,100]
 
@@ -82,7 +84,9 @@ def train(websites, attributes):
     model = SeqModel(config)
 
     logger.info('Instantiating the Training object')
-    trainer = pl.Trainer(gpus=n_gpus, max_epochs=1, callbacks=[checkpoint_callback])
+    trainer = pl.Trainer(accelerator='cpu', devices=10, max_epochs=num_train_epochs,
+                         strategy = 'ddp_fork_find_unused_parameters_false',
+                         callbacks=[checkpoint_callback])
 
     logger.info('Fitting the model')
     trainer.fit(model)
@@ -94,7 +98,7 @@ def train(websites, attributes):
     model = SeqModel.load_from_checkpoint("weights_wpix_manual_ckpt.ckpt",config=config)
     model = model.to(device)
 
-    return val_websites, charDict, tagDict, model, n_classes
+    return charDict, tagDict, model, n_classes
 
 
 def test(val_websites, charDict, tagDict, model, n_classes):
