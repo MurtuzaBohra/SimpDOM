@@ -87,7 +87,7 @@ def loadDataset( websites, isValidataion, datapath='/tmp'):
         random.shuffle(pageIDs)
         if isValidataion:
             pageIDs = pageIDs[:int(len(pageIDs)*0.1)]
-        for pageID in tqdm(pageIDs, desc='Web pages'):
+        for pageID in tqdm(pageIDs, desc=f'Web pages for: "{website}"'):
             nodeIDs = list(data[pageID].keys())
             max_nodeID = max(nodeIDs)
             for nodeID in nodeIDs:
@@ -198,7 +198,7 @@ def loadDataset_test( websites, datapath='/tmp'):
         key = f'{datapath}/nodesDetails/{website}.pkl'
         data = pickle.load(open(key,'rb'))
         pageIDs = list(data.keys())
-        for pageID in tqdm(pageIDs, desc='Web pages'):
+        for pageID in tqdm(pageIDs, desc=f'Web pages for: "{website}"'):
             nodeIDs = list(data[pageID].keys())
             max_nodeID = max(nodeIDs)
             for nodeID in nodeIDs:
