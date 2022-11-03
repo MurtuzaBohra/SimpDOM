@@ -30,7 +30,7 @@ tag_hid_dim = 30
 
 leaf_emb_dim = 30
 pos_emb_dim = 20
-word_emb_filename= '{}/glove.6B.100d.txt'.format(datapath)
+word_emb_filename= f'{datapath}/glove.6B.100d.txt'
 
 def load_dict(fname):
     logger.info(f'Loading {fname}')
@@ -40,8 +40,8 @@ def load_dict(fname):
 
 def train(websites, attributes):
     train_websites, val_websites = websites[:1], websites[1:]
-    print( 'training websites - {}'.format(train_websites))
-    print( 'validation websites - {}'.format(val_websites))
+    logger.info( 'Training websites: {train_websites}')
+    logger.info( 'Validation websites: {val_websites}')
     n_classes = len(attributes)+1
     class_weights = [1,100,100,100,100]
 
@@ -104,6 +104,10 @@ def test(val_websites, charDict, tagDict, model, n_classes):
                                       batch_size=32, shuffle=False, pin_memory = True, collate_fn = collate_fn_test)
     model = model.eval()
     df = get_predictions(test_dataset, model, device, 0.7)
+    dump_file_name = 'test_predictions.csv'
+    print(f'Dumping predictions dataframe into: {dump_file_name}')
+    df.to_csv(dump_file_name)
+    
     avg_p_r_f1_dict = pageLevel_cal_PR_summary(df, n_classes)
     # pr_summary_df, pr_results_df = websiteLevel_cal_PR_summary(df, n_classes)
     # print(pr_results_df)
