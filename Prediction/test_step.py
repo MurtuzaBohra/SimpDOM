@@ -1,17 +1,21 @@
-import numpy as np
 import torch
 import pickle
+
+import numpy as np
 import pandas as pd
 import torch.nn.functional as F
+
 from tqdm.notebook import tqdm
-from DataLoader.swde_dataLoader import swde_data_test, collate_fn_test
+
+from DataLoader.swde_dataLoader import swde_data_test
+from DataLoader.swde_dataLoader import collate_fn_test
 
 PROB_THRESHOLD = 0.4
 device = 'cuda'
 
 #---------------------------------------------------------------------------------
 #---------------------------------------------------------------------------------
-def to_device(batch,device):
+def to_device(batch, device):
     raw_nodes, xpath_seqs, xpath_lens, leaf_tag_indices, pos_indices, nodes_word_embs, nodes_sent_lens, friends_word_embs, friends_sent_lens, \
     partners_word_embs, partners_sent_lens, nodes_char_seqs, nodes_word_lens, friends_char_seqs, friends_word_lens, \
     partners_char_seqs, partners_word_lens, labels = batch
@@ -30,7 +34,6 @@ def test_step_SimpDOM(model, batch, batch_idx):
     partners_char_seqs, partners_word_lens)
 
     outputs = F.softmax(outputs, dim=1)
-        
 
     preds = torch.max(outputs, dim=1)[1].cpu().detach().numpy()
     preds_probs = outputs.cpu().detach().numpy()
@@ -51,10 +54,14 @@ def create_results_df(labels, preds, preds_probs, raw_nodes, PROB_THRESHOLD):
                         raw_nodes[idx][4], raw_nodes[idx][5], pred, labels[idx], isMatch]+ list(preds_probs[idx,:])
     return df, preds_after_threshold
 
-def main(test_dataset, model, Device, PROB_THRESHOLD): 
+def main(model, Device, PROB_THRESHOLD): 
     # PROB_THRESHOLD -> confidence to predict target attribute.
     global device
     device = Device
+    
+    # Get the test data set - validation dataset that is
+    test_dataset = model.test_dataloader()
+    
     df = pd.DataFrame()
     batch_idx = 0
     for batch in tqdm(test_dataset, desc='Testing batches'):

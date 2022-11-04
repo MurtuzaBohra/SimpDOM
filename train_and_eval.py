@@ -10,16 +10,13 @@ import pytorch_lightning as pl
 from pytorch_lightning.callbacks import ModelCheckpoint
 
 from Utils.logger import logger
-from torch.utils.data import DataLoader
 from Model.SimpDOM_model import SeqModel
+from Prediction.PRSummary import cal_PR_summary
 from Prediction.test_step import main as get_predictions
 from Utils.pretrainedGloVe import pretrainedWordEmeddings
-from DataLoader.swde_dataLoader import swde_data_test, collate_fn_test
-from Prediction.PRSummary import cal_PR_summary as pageLevel_cal_PR_summary
 from Prediction.WebsiteLevel_PR_Generator import cal_PR_summary as websiteLevel_cal_PR_summary
 
 datapath = './data'
-random.seed(7)
 device = 'cpu'
 
 n_workers=0 # Important to keep this at zero as otherwise we get a shared memory error
@@ -33,23 +30,40 @@ tag_hid_dim = 30
 
 leaf_emb_dim = 30
 pos_emb_dim = 20
-word_emb_filename= f'{datapath}/glove.6B.100d.txt'
 
-def load_dict(fname):
-    logger.info(f'Loading {fname}')
-    Dict = pickle.load(open(fname,'rb'))
-    logger.info(f'Dictionary {fname} length: {len(Dict)}')
-    return Dict
+char_dict_filename = f'{datapath}/English_charDict.pkl'
+tag_dict_filename = f'{datapath}/HTMLTagDict.pkl'
+word_emb_filename = f'{datapath}/glove.6B.100d.txt'
+train_model_weights_file = 'weights_wpix_manual_ckpt.ckpt'
+pred_dump_file_name = 'test_predictions.csv'
 
-def train(train_websites, val_websites, attributes, num_train_epochs):
-    logger.info(f'Training websites: {train_websites}')
-    logger.info(f'Validation websites: {val_websites}')
-    n_classes = len(attributes)+1
-    class_weights = [1,100,100,100,100]
+def create_config(train_websites, val_websites, test_websites, attributes):
+    n_classes = len(attributes) + 1
+    class_weights = [1, 100, 100, 100, 100]
+    config = {
+        'out_dim': n_classes,
+        'train_websites': train_websites,
+        'val_websites': val_websites,
+        'test_websites': test_websites,
+        'datapath': datapath,
+        'n_workers': n_workers,
+        'char_emb_dim' : char_emb_dim,
+        'char_hid_dim' : char_hid_dim,
+        'char_emb_dropout' : char_emb_dropout,
+        'tag_emb_dim': tag_emb_dim,
+        'tag_hid_dim': tag_hid_dim,
+        'leaf_emb_dim': leaf_emb_dim,
+        'pos_emb_dim': pos_emb_dim,
+        'attributes': attributes,
+        'n_gpus' : n_gpus,
+        'class_weights':class_weights,
+        'char_dict_filename' : char_dict_filename,
+        'tag_dict_filename': tag_dict_filename,
+        'word_emb_filename': word_emb_filename
+    }
+    return config
 
-    charDict = load_dict(f'{datapath}/English_charDict.pkl')
-    tagDict = load_dict(f'{datapath}/HTMLTagDict.pkl')
-
+def train_model(config, num_train_epochs):
     logger.info('Instantiating the Model checkpoint.')
     checkpoint_callback = ModelCheckpoint(
         filename='./data/weights',
@@ -61,26 +75,6 @@ def train(train_websites, val_websites, attributes, num_train_epochs):
     )
     
     logger.info('Instantiating the Sequential model')
-    config = {
-        'out_dim': n_classes,
-        'train_websites': train_websites,
-        'val_websites': val_websites,
-        'datapath': datapath,
-        'n_workers': n_workers,
-        'charDict' : charDict,
-        'char_emb_dim' : char_emb_dim,
-        'char_hid_dim' : char_hid_dim,
-        'char_emb_dropout' : char_emb_dropout,
-        'tagDict': tagDict,
-        'tag_emb_dim': tag_emb_dim,
-        'tag_hid_dim': tag_hid_dim,
-        'leaf_emb_dim': leaf_emb_dim,
-        'pos_emb_dim': pos_emb_dim,
-        'attributes': attributes,
-        'n_gpus' : n_gpus,
-        'class_weights':class_weights,
-        'word_emb_filename': word_emb_filename
-    }
     model = SeqModel(config)
 
     logger.info('Instantiating the Training object')
@@ -91,30 +85,46 @@ def train(train_websites, val_websites, attributes, num_train_epochs):
     logger.info('Fitting the model')
     trainer.fit(model)
     
-    logger.info('Saving the check point')
-    trainer.save_checkpoint("weights_wpix_manual_ckpt.ckpt")
+    logger.info(f'Saving the check point into: {train_model_weights_file}')
+    trainer.save_checkpoint(train_model_weights_file)
 
-    logger.info('Re-loading the Sequential model from Checkpoint')
-    model = SeqModel.load_from_checkpoint("weights_wpix_manual_ckpt.ckpt",config=config)
-    model = model.to(device)
+    return model
 
-    return charDict, tagDict, model, n_classes
+def test_model(config, model=None, model_weights_file=None, test_websites=None):
+    if model is None:
+        logger.warning(f'The pre-trained model is not provided, loading from disk')
+        if model_weights_file is None:
+            logger.warning(f'The model weights file is not provided, loading weights from: {model_weights_file}')
+            model_weights_file = train_model_weights_file
+        else:
+            logger.info(f'Loading weights from: {model_weights_file}')
+        model = SeqModel.load_from_checkpoint(model_weights_file, config=config)
+        model = model.eval()
+        model = model.to(device)
 
-
-def test(val_websites, charDict, tagDict, model, n_classes):
-    WordEmeddings = pretrainedWordEmeddings(word_emb_filename)
-    test_dataset = DataLoader(dataset = swde_data_test(val_websites, datapath, charDict, \
-                                      tagDict, n_gpus, WordEmeddings), num_workers=n_workers, \
-                                      batch_size=32, shuffle=False, pin_memory = True, collate_fn = collate_fn_test)
-    model = model.eval()
-    df = get_predictions(test_dataset, model, device, 0.7)
-    dump_file_name = 'test_predictions.csv'
-    print(f'Dumping predictions dataframe into: {dump_file_name}')
-    df.to_csv(dump_file_name)
+    # Get the validation sites
+    if test_websites is None:
+        logger.warning(f'The test websites was not explit, extracting from config!')
+        test_websites = config['test_websites']
+    else:
+        logger.warning(f'The test websites was explit, updating config!')
+        config['test_websites'] = test_websites
+    logger.info(f'The test websites are: {test_websites}')
     
-    avg_p_r_f1_dict = pageLevel_cal_PR_summary(df, n_classes)
-    # pr_summary_df, pr_results_df = websiteLevel_cal_PR_summary(df, n_classes)
-    # print(pr_results_df)
+    # Get the model predictions
+    df = get_predictions(model, device, 0.7)
+    print(f'Dumping predictions dataframe into: {pred_dump_file_name}')
+    df.to_csv(pred_dump_file_name)
+    
+    # Get the overall summary
+    n_classes = config['out_dim']
+    avg_p_r_f1_dict = cal_PR_summary(df, n_classes)
+    logger.info(f'Prediction summary:\n{avg_p_r_f1_dict}')
+
+    # Get the website level summary
+    pr_summary_df, pr_results_df = websiteLevel_cal_PR_summary(df, n_classes)
+    logger.info(f'Website-level prediction summary:\n{pr_results_df}')
+    
     return avg_p_r_f1_dict
 
 

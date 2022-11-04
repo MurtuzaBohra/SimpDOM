@@ -117,7 +117,6 @@ def collate_char_seq (list_char_seqs):
     all_char_seqs, all_word_lens = padded_tensor(all_char_seqs)
     return all_char_seqs, all_word_lens
 
-
 def collate_fn(data):
     nodes, labels = zip(*data)
     batch_size = len(labels)
@@ -168,7 +167,7 @@ class swde_data(Dataset):
         # self.nodes = self.loadDataset(datasetS3Bucket)
         
         self.len = len(self.nodes)
-        logger.info(f'SWDE data loader has loaded: {self.len} nodes')
+        logger.info(f'SWDE data loader has loaded: {self.len} nodes from: {websites}')
 
     def __getitem__(self, index):
         #self.nodes[index] = (nodeText, friendsText, partnerText, label)
@@ -218,7 +217,6 @@ def loadDataset_test( websites, datapath='/tmp'):
                     sample_idx+=1
     return nodes, raw_nodes
 
-
 def collate_fn_test(data):
     raw_nodes, nodes, labels = zip(*data)
     batch_size = len(labels)
@@ -243,7 +241,6 @@ def collate_fn_test(data):
     partners_word_embs, partners_sent_lens, nodes_char_seqs, nodes_word_lens, friends_char_seqs, friends_word_lens, \
     partners_char_seqs, partners_word_lens, labels
 
-
 class swde_data_test(Dataset):
     def __init__(self, websites, datapath, cDict, tDict, n_gpus, WordEmeddings):
         #attributes must be in order of labels in the training data.
@@ -258,7 +255,7 @@ class swde_data_test(Dataset):
         # self.nodes = self.loadDataset(datasetS3Bucket)
         
         self.len = len(self.nodes)
-        print(' {} - nodes are loaded in swde_dataLoader_test'.format(self.len))
+        logger.info(f'SWDE data test loader has loaded: {self.len} nodes from: {websites}')
 
     def __getitem__(self, index):
         #self.nodes[index] = (nodeText, friendsText, partnerText, label)
