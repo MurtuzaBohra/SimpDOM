@@ -1,11 +1,17 @@
-import pickle
-import pandas as pd
-import numpy as np
-from collections import defaultdict
 import os
+import pickle
+
+import numpy as np
+import pandas as pd
+
+from pathlib import Path
+from tqdm.notebook import tqdm
+from collections import defaultdict
+
+from Utils.logger import logger
 from DatasetCreation.helperFunctions import remove_hidden_dir
 
-Datapath = '/Users/bmurtuza/Documents/Research/data/swde/SimpDOM'
+Datapath = '../'
 vertical = 'auto'
 
 def _get_K_ancestors(node, K):
@@ -42,13 +48,13 @@ def sort_closest_DESC(nodesDetails, DESC, node_absxpath):
 
 def update_Df_and_Dp_in_nodeDetails(nodesDetails, Dd, K):
     '''
-	INPUT
-		nodesDetails: dictionary of node_ID -> DOMNodeDetails (namedTuple)
-		Dd: dictionary of node xpath to it's descendents.
-		K: number of ancestors to be considered for friend circle.
-	OUTPUT:
-		nodesDetails: updated friendsNodes and partnerNodes for each node.
-	'''
+    INPUT
+        nodesDetails: dictionary of node_ID -> DOMNodeDetails (namedTuple)
+        Dd: dictionary of node xpath to it's descendents.
+        K: number of ancestors to be considered for friend circle.
+    OUTPUT:
+        nodesDetails: updated friendsNodes and partnerNodes for each node.
+    '''
     for node_ID in nodesDetails.keys():
         Dp, Df = [],[]
         node = nodesDetails[node_ID]
@@ -73,22 +79,27 @@ def update_Df_and_Dp_in_nodeDetails(nodesDetails, Dd, K):
     return nodesDetails, avg_no_friends, avg_no_of_partners
 
 def main(Datapath, vertical, K=5):
-    websites = remove_hidden_dir(os.listdir('{}/{}'.format(Datapath,vertical)))
-    
-    for dirname in websites:
+    websites = remove_hidden_dir(os.listdir(os.path.join(Datapath, vertical)))
+ 
+    nd_path = Path(os.path.join(Datapath, 'nodesDetails'))
+    nd_path.mkdir(parents=True, exist_ok=True)
+
+    for dirname in tqdm(websites, desc='Web sites'):
         website = dirname.split('(')[0]
-        print(website)
         avg_friends, avg_partners = [],[]
-        nodesDetailsAllPages = pickle.load(open('{}/nodesDetails/{}.pkl'.format(Datapath, website), 'rb'))
-        for page_ID in nodesDetailsAllPages.keys():
+        dump_file_name = os.path.join(Datapath, 'nodesDetails',f'{website}.pkl')
+        nodesDetailsAllPages = pickle.load(open(dump_file_name, 'rb'))
+        for page_ID in tqdm(nodesDetailsAllPages.keys(), desc=f'Pages for website: {website}'):
             nodesDetails = nodesDetailsAllPages[page_ID]
             Dd = create_Dd(nodesDetails, K)
             nodesDetailsAllPages[page_ID], avg_no_friends, avg_no_of_partners = update_Df_and_Dp_in_nodeDetails(nodesDetails, Dd, K)
             avg_friends.append(avg_no_friends)
             avg_partners.append(avg_no_of_partners)
-        pickle.dump(nodesDetailsAllPages, open('{}/nodesDetails/{}.pkl'.format(Datapath, website), 'wb'))
-        print('average friend nodes - {}, partner nodes - {}'.format(np.mean(avg_friends), np.mean(avg_partners)))
-        print('===========================')
+
+        logger.info(f'Re-dumping node details (all pages) into: {dump_file_name}')
+        pickle.dump(nodesDetailsAllPages, open(dump_file_name, 'wb'))
+        
+        logger.info(f'The friend/partner nodes for: "{website}" is: {np.mean(avg_friends)}/{np.mean(avg_partners)}')
 
 if __name__ =="__main__":
     main(Datapath, vertical, K)

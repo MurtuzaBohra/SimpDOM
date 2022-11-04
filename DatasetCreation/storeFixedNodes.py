@@ -1,12 +1,18 @@
-import pandas as pd
-import pickle
-import numpy
 import os
+import numpy
+import pickle
 import random
-from Utils.DOMTree import DOMTree
-from DatasetCreation.helperFunctions import remove_hidden_dir, get_text_nodes
 
-Datapath = '/Users/bmurtuza/Documents/Research/data/swde/SimpDOM'
+import pandas as pd
+
+from tqdm.notebook import tqdm
+
+from Utils.logger import logger
+from Utils.DOMTree import DOMTree
+from DatasetCreation.helperFunctions import get_text_nodes
+from DatasetCreation.helperFunctions import remove_hidden_dir
+
+Datapath = '../'
 vertical = 'auto'
 FIXED_NODE_THRESHOLD = 0.4
 
@@ -29,24 +35,30 @@ def updateFixedNode(xpathTextCount, num_sample_pages, fixedNodes, website):
     return fixedNodes
 
 def main(Datapath, vertical):
-    websites = remove_hidden_dir(os.listdir('{}/{}'.format(Datapath, vertical)))
-    print(websites)
+    websites = remove_hidden_dir(os.listdir(os.path.join(Datapath, vertical)))
+
     fixedNodes = pd.DataFrame(columns= ['website', 'absxpath', 'text'])
-    for dirname in websites:
+    for dirname in tqdm(websites, desc='Web sites'):
         website = dirname.split('(')[0]
         num_pages = int(dirname.split('(')[1].strip(')'))
         sample_pages_ID = random.sample([i for i in range(num_pages)], int(num_pages*1.0)) #sample 10% pages to get the fixed nodes
-        print(website, len(sample_pages_ID))
+        logger.debug(f'Considering: {website}, with: {len(sample_pages_ID)} sample pages')
+
         xpathTextCount = {}
-        for page_ID in sample_pages_ID:
+        for page_ID in tqdm(sample_pages_ID, desc=f'Pages for website: {website}'):
             filename = list('0000')
             filename[-len(str(page_ID)):] = str(page_ID)
             filename = ''.join(filename)
-            html_filename = '{}/{}/{}/{}.htm'.format(Datapath, vertical,dirname,filename)
+            html_filename = os.path.join(Datapath, vertical, dirname, f'{filename}.htm')
             xpathTextCount = createXpathTextCount(html_filename, xpathTextCount)
+
+        # Update the fixed nodes dataframe
         fixedNodes = updateFixedNode(xpathTextCount, len(sample_pages_ID), fixedNodes, website)
-        print(len(fixedNodes))
-        fixedNodes.to_csv('{}/fixedNodes_camera.csv'.format(Datapath), index=False)
+
+    # Store the fixed nodes data into file
+    file_path = os.path.join(Datapath, 'fixedNodes_camera.csv')
+    logger.info(f'Got: {len(fixedNodes)} fixed nodes for: {website}, dumping into: {file_path}')
+    fixedNodes.to_csv(file_path, index=False)
 
 if __name__ == "__main__":
     main(Datapath)

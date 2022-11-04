@@ -1,12 +1,19 @@
-import pandas as pd
-import pickle
-import numpy as np
 import os
+import pickle
 import random
-from Utils.DOMTree import DOMTree
-from DatasetCreation.helperFunctions import remove_hidden_dir, get_text_nodes
 
-Datapath = '/Users/bmurtuza/Documents/Research/data/swde/SimpDOM'
+import numpy as np
+import pandas as pd
+
+from pathlib import Path
+from tqdm.notebook import tqdm
+
+from Utils.logger import logger
+from Utils.DOMTree import DOMTree
+from DatasetCreation.helperFunctions import get_text_nodes
+from DatasetCreation.helperFunctions import remove_hidden_dir
+
+Datapath = '../'
 vertical = 'auto'
 def get_text_nodes_details(html_filename, fixedNodes):
     with open(html_filename, 'r') as f:
@@ -23,27 +30,31 @@ def get_count_of_variable_and_fixed_nodes(nodes_dict):
     return count, len(nodes_dict)-count
 
 def main(Datapath, vertical):
-    websites = remove_hidden_dir(os.listdir('{}/{}'.format(Datapath,vertical)))
-    print(websites)
-    fixedNodes_filename = '{}/fixedNodes_camera.csv'.format(Datapath)
+    websites = remove_hidden_dir(os.listdir(os.path.join(Datapath, vertical)))
+
+    fixedNodes_filename = os.path.join(Datapath, 'fixedNodes_camera.csv')
     fixedNodes = pd.read_csv(fixedNodes_filename,  dtype= str, na_values=str, keep_default_na=False)
-    
-    for dirname in websites:
+
+    nd_path = Path(os.path.join(Datapath, 'nodesDetails'))
+    nd_path.mkdir(parents=True, exist_ok=True)
+
+    for dirname in tqdm(websites, desc='Web sites'):
         website = dirname.split('(')[0]
-        print(website)
         num_pages = int(dirname.split('(')[1].strip(')'))
         nodesDetails = {}
-        for idx in range(num_pages):
+        for idx in tqdm(range(num_pages), desc=f'Pages for website: {website}'):
             page_ID = list('0000')
             page_ID[-len(str(idx)):] = str(idx)
             page_ID = ''.join(page_ID)
-            html_filename = '{}/{}/{}/{}.htm'.format(Datapath,vertical,dirname,page_ID)
+            html_filename = os.path.join(Datapath, vertical, dirname, f'{page_ID}.htm')
             nodesDetails[page_ID] = get_text_nodes_details(html_filename, fixedNodes.loc[fixedNodes.website == website])
-        pickle.dump(nodesDetails, open('{}/nodesDetails/{}.pkl'.format(Datapath, website), 'wb'))
+
+        dump_file_name = os.path.join(Datapath, 'nodesDetails',f'{website}.pkl')
+        logger.info(f'Dumping node details into: {dump_file_name}')
+        pickle.dump(nodesDetails, open(dump_file_name, 'wb'))
         
         variableAndFixedNodesCounts = [get_count_of_variable_and_fixed_nodes(nodesDetails[page_ID]) for page_ID in nodesDetails.keys()]
-        print('avg no. of variable nodes = {}'.format(np.mean(np.array(variableAndFixedNodesCounts), axis=0)))
-        print('=====================')
+        logger.info(f'The average variabe/mixed node counts: {website} are: {np.mean(np.array(variableAndFixedNodesCounts), axis=0)}')
 
 if __name__ == "__main__":
     main(Datapath)

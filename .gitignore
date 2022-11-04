@@ -11,3 +11,5 @@ lightning_logs/
 weights_wpix_manual_ckpt.ckpt
 list_avg_pr.pkl
 *.csv
+data/_nodesDetails/
+data/groundtruth/
