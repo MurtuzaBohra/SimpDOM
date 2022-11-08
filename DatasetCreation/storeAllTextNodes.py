@@ -13,7 +13,7 @@ from Utils.DOMTree import DOMTree
 from DatasetCreation.helperFunctions import get_text_nodes
 from DatasetCreation.helperFunctions import remove_hidden_dir
 
-Datapath = '../'
+data_path = '../data'
 vertical = 'auto'
 def get_text_nodes_details(html_filename, fixedNodes):
     with open(html_filename, 'r') as f:
@@ -29,13 +29,13 @@ def get_count_of_variable_and_fixed_nodes(nodes_dict):
             count+=1
     return count, len(nodes_dict)-count
 
-def main(Datapath, vertical):
-    websites = remove_hidden_dir(os.listdir(os.path.join(Datapath, vertical)))
+def main(data_path, vertical):
+    websites = remove_hidden_dir(os.listdir(os.path.join(data_path, vertical)))
 
-    fixedNodes_filename = os.path.join(Datapath, 'fixedNodes_camera.csv')
+    fixedNodes_filename = os.path.join(data_path, 'fixedNodes_camera.csv')
     fixedNodes = pd.read_csv(fixedNodes_filename,  dtype= str, na_values=str, keep_default_na=False)
 
-    nd_path = Path(os.path.join(Datapath, 'nodesDetails'))
+    nd_path = Path(os.path.join(data_path, 'nodesDetails'))
     nd_path.mkdir(parents=True, exist_ok=True)
 
     for dirname in tqdm(websites, desc='Web sites'):
@@ -46,10 +46,10 @@ def main(Datapath, vertical):
             page_ID = list('0000')
             page_ID[-len(str(idx)):] = str(idx)
             page_ID = ''.join(page_ID)
-            html_filename = os.path.join(Datapath, vertical, dirname, f'{page_ID}.htm')
+            html_filename = os.path.join(data_path, vertical, dirname, f'{page_ID}.htm')
             nodesDetails[page_ID] = get_text_nodes_details(html_filename, fixedNodes.loc[fixedNodes.website == website])
 
-        dump_file_name = os.path.join(Datapath, 'nodesDetails',f'{website}.pkl')
+        dump_file_name = os.path.join(data_path, 'nodesDetails',f'{website}.pkl')
         logger.info(f'Dumping node details into: {dump_file_name}')
         pickle.dump(nodesDetails, open(dump_file_name, 'wb'))
         
@@ -57,4 +57,4 @@ def main(Datapath, vertical):
         logger.info(f'The average variabe/mixed node counts: {website} are: {np.mean(np.array(variableAndFixedNodesCounts), axis=0)}')
 
 if __name__ == "__main__":
-    main(Datapath)
+    main(data_path)

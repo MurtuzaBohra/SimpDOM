@@ -9,13 +9,13 @@ from tqdm.notebook import tqdm
 from Utils.logger import logger
 from DatasetCreation.helperFunctions import remove_hidden_dir
 
-Datapath = '../'
+data_path = '../data'
 vertical = 'auto'
 
 SIMILARITY_THRESHOLD = 0.9
 
-def _read_groundTruth(Datapath, vertical, website, attribute):
-    groundTruth_filename = '{}/groundTruth/{}/{}-{}.txt'.format(Datapath, vertical, website, attribute)
+def _read_groundTruth(data_path, vertical, website, attribute):
+    groundTruth_filename = '{}/groundTruth/{}/{}-{}.txt'.format(data_path, vertical, website, attribute)
     with open(groundTruth_filename, 'r') as f:
         content = f.readlines()
     lines = [line.rstrip('\n').split('\t') for line in content[2:]]
@@ -42,7 +42,7 @@ def _isAttributeNode(text, gt_values, attribute):
     return bool_output
 
 def _annotate_gt(nodesDetailsAllPages, groundTruth, label_index, annotation_statistics, website, attribute):
-    for page_ID in innodesDetailsAllPages.keys():
+    for page_ID in nodesDetailsAllPages.keys():
         annotated_texts = []
         nodes = nodesDetailsAllPages[page_ID]
         gt_values = groundTruth[page_ID]
@@ -57,23 +57,23 @@ def _annotate_gt(nodesDetailsAllPages, groundTruth, label_index, annotation_stat
     return nodesDetailsAllPages, annotation_statistics
 
 
-def main(Datapath, vertical, attributes):
-    websites = remove_hidden_dir(os.listdir(os.path.join(Datapath, vertical)))
+def main(data_path, vertical, attributes):
+    websites = remove_hidden_dir(os.listdir(os.path.join(data_path, vertical)))
     websites = [dirname.split('(')[0] for dirname in websites]
 
     label_indices = {attribute: str(idx+1) for idx,attribute in enumerate(attributes)}
     annotation_statistics = pd.DataFrame(columns = ['website', 'attribute', 'page_ID', 'annotation_count', 'annotation_text'])
     for website in tqdm(websites, desc='Web sites'):
-        dump_file_name = os.path.join(Datapath, 'nodesDetails',f'{website}.pkl')
+        dump_file_name = os.path.join(data_path, 'nodesDetails',f'{website}.pkl')
         nodesDetailsAllPages = pickle.load(open(dump_file_name, 'rb'))
         for attribute in tqdm(attributes, desc=f'Attributes for website: {website}'):
-            groundTruth = _read_groundTruth(Datapath, vertical, website, attribute)
+            groundTruth = _read_groundTruth(data_path, vertical, website, attribute)
             nodesDetailsAllPages, annotation_statistics = _annotate_gt(nodesDetailsAllPages, groundTruth, label_indices[attribute],
                                                                        annotation_statistics, website, attribute)
         logger.info(f'Re-dumping node details (all pages) into: {dump_file_name}')
         pickle.dump(nodesDetailsAllPages, open(dump_file_name, 'wb'))
     
-    #annotation_statistics.to_csv('{}/nodesDetails/annotation_statistics.csv'.format(Datapath), index=False)
+    #annotation_statistics.to_csv('{}/nodesDetails/annotation_statistics.csv'.format(data_path), index=False)
 
 if __name__ == "__main__":
-    main(Datapath, vertical, websites, attributes)
+    main(data_path, vertical, attributes)

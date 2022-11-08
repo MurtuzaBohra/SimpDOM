@@ -1,13 +1,19 @@
-import pickle
-import pandas as pd
+import os
 import re
 import sys
-sys.path.append('/Users/bmurtuza/Documents/Research/code/site_agnostic_extraction/src/SiteAgnosticClosedIE')
+import pickle
 
-Datapath = '/Users/bmurtuza/Documents/Research/data/wpix3_uec/wpix3/data/SimpDOM'
+import pandas as pd
+from tqdm.notebook import tqdm
+
+from Utils.logger import logger
+from DatasetCreation.helperFunctions import remove_hidden_dir
+
+#sys.path.append('/Users/bmurtuza/Documents/Research/code/site_agnostic_extraction/src/SiteAgnosticClosedIE')
+
+data_path = '../data'
 MIN_DOCUMENT_FREQUENCY = 10
-
-# websites = ['auto-kbb','auto-autoweb','auto-aol','auto-yahoo','auto-motortrend','auto-autobytel','auto-carquotes','auto-cars','auto-msn','auto-automotive']
+vertical = 'auto'
 
 def addToCharDictionary(text, charFreq):
     uniqueChars = set(text.lower())
@@ -43,27 +49,29 @@ def getDictAfterThresholding(freqDict):
             Index+=1
     return Dict
 
-def main(Datapath, websites):
+def dumpFileDict(data_dict, data_path, file_name, desc):
+    dump_file_name = os.path.join(data_path, f'{file_name}.pkl')
+    logger.info(f'Dumping {desc} of: {len(data_dict)} elements into: {dump_file_name}')
+    pickle.dump(data_dict, open(dump_file_name, 'wb'))
+
+def main(data_path, vertical):
+    websites = remove_hidden_dir(os.listdir(os.path.join(data_path, vertical)))
+    websites = [dirname.split('(')[0] for dirname in websites]
+
     charFreq = {}
     tagFreq ={}
-    for website in websites:
-        print(website)
-        nodesDetailsAllPages = pickle.load(open('{}/nodesDetails/{}.pkl'.format(Datapath, website), 'rb'))
-        for page in nodesDetailsAllPages.values():
+    for website in tqdm(websites, desc='Web sites'):
+        node_info_file_name = os.path.join(data_path, 'nodesDetails',f'{website}.pkl')
+        nodesDetailsAllPages = pickle.load(open(node_info_file_name, 'rb'))
+        for page in tqdm(nodesDetailsAllPages.values(), desc=f'Pages for website: {website}'):
             for node in page.values():
                 charFreq = addToCharDictionary(node.text, charFreq)
                 tagFreq = addToTagDictionary(node.absxpath, tagFreq)
     charDict = getDictAfterThresholding(charFreq)
     tagDict = getDictAfterThresholding(tagFreq)
-    return charDict,tagDict
+
+    dumpFileDict(charDict, data_path, 'English_charDict', 'English character dictionary')
+    dumpFileDict(tagDict, data_path, 'HTMLTagDict', 'HTML tags dictionary')
 
 if __name__=="__main__":
-    charDict, tagDict = main(Datapath, websites)
-    print('size of char vocab - {}'.format(len(charDict)))
-    print(charDict)
-    print('===========================')
-    print('size of tag vocab - {}'.format(len(tagDict)))
-    print(tagDict)
-    pickle.dump(charDict, open('{}/English_charDict.pkl'.format(Datapath), 'wb'))
-    pickle.dump(tagDict, open('{}/HTMLTagDict.pkl'.format(Datapath), 'wb'))
-
+    main(data_path, vertical)

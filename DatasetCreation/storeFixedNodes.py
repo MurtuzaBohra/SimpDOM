@@ -12,7 +12,7 @@ from Utils.DOMTree import DOMTree
 from DatasetCreation.helperFunctions import get_text_nodes
 from DatasetCreation.helperFunctions import remove_hidden_dir
 
-Datapath = '../'
+data_path = '../data'
 vertical = 'auto'
 FIXED_NODE_THRESHOLD = 0.4
 
@@ -34,8 +34,8 @@ def updateFixedNode(xpathTextCount, num_sample_pages, fixedNodes, website):
             fixedNodes.loc[len(fixedNodes)] = [website, key[0], key[1]]
     return fixedNodes
 
-def main(Datapath, vertical):
-    websites = remove_hidden_dir(os.listdir(os.path.join(Datapath, vertical)))
+def main(data_path, vertical):
+    websites = remove_hidden_dir(os.listdir(os.path.join(data_path, vertical)))
 
     fixedNodes = pd.DataFrame(columns= ['website', 'absxpath', 'text'])
     for dirname in tqdm(websites, desc='Web sites'):
@@ -49,16 +49,16 @@ def main(Datapath, vertical):
             filename = list('0000')
             filename[-len(str(page_ID)):] = str(page_ID)
             filename = ''.join(filename)
-            html_filename = os.path.join(Datapath, vertical, dirname, f'{filename}.htm')
+            html_filename = os.path.join(data_path, vertical, dirname, f'{filename}.htm')
             xpathTextCount = createXpathTextCount(html_filename, xpathTextCount)
 
         # Update the fixed nodes dataframe
         fixedNodes = updateFixedNode(xpathTextCount, len(sample_pages_ID), fixedNodes, website)
 
     # Store the fixed nodes data into file
-    file_path = os.path.join(Datapath, 'fixedNodes_camera.csv')
-    logger.info(f'Got: {len(fixedNodes)} fixed nodes for: {website}, dumping into: {file_path}')
+    file_path = os.path.join(data_path, 'fixedNodes_camera.csv')
+    logger.info(f'Got: {len(fixedNodes)} fixed nodes for: {vertical}, dumping into: {file_path}')
     fixedNodes.to_csv(file_path, index=False)
 
 if __name__ == "__main__":
-    main(Datapath)
+    main(data_path)
