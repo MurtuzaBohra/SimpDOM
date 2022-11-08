@@ -8,7 +8,9 @@ import pandas as pd
 import torch.nn as nn
 import pytorch_lightning as pl
 
+from torchviz import make_dot
 from pytorch_lightning.callbacks import ModelCheckpoint
+from pytorch_lightning.callbacks.early_stopping import EarlyStopping
 
 from Utils.logger import logger
 from Model.SimpDOM_model import SeqModel
@@ -38,7 +40,7 @@ word_emb_filename = os.path.join(data_path, 'glove.6B.100d.txt')
 train_model_weights_file = os.path.join(data_path, 'weights.ckpt')
 pred_dump_file_name = 'test_predictions.csv'
 
-def create_config(train_websites, val_websites, test_websites, attributes, learning_rate = 1e-4):
+def create_config(train_websites, val_websites, test_websites, attributes, learning_rate = 1e-5):
     n_classes = len(attributes) + 1
     class_weights = [1, 100, 100, 100, 100]
     config = {
@@ -61,13 +63,15 @@ def create_config(train_websites, val_websites, test_websites, attributes, learn
         'char_dict_filename' : char_dict_filename,
         'tag_dict_filename': tag_dict_filename,
         'word_emb_filename': word_emb_filename,
-        'learning_rate': learning_rate
+        'learning_rate': learning_rate,
+        'patience' : 2
+        
     }
     return config
 
 def train_model(config, num_train_epochs):
-    logger.info('Instantiating the Model checkpoint.')
-    checkpoint_callback = ModelCheckpoint(
+    logger.info('Instantiating the Model Checkpoint callback')
+    cp_callback = ModelCheckpoint(
         dirpath=os.path.join('.', 'data'),
         filename='weights',
         save_top_k=1,
@@ -77,18 +81,28 @@ def train_model(config, num_train_epochs):
         mode='min'
     )
     
+    logger.info('Instantiating the Early Stopping callback')
+    es_callback = EarlyStopping(monitor="val_loss", patience=config['patience'], mode="min")
+    
     logger.info('Instantiating the Sequential model')
     model = SeqModel(config)
 
     logger.info('Instantiating the Training object')
     trainer = pl.Trainer(accelerator='cpu', devices=10, max_epochs=num_train_epochs,
                          strategy = 'ddp_fork_find_unused_parameters_false',
-                         callbacks=[checkpoint_callback])
+                         callbacks=[cp_callback, es_callback])
 
     logger.info('Fitting the model')
     trainer.fit(model)
 
     return model
+
+def visualize_model(model, file_name='model_structure', fmt='png'):
+    val_data_loader = model.train_dataloader()
+    batch = next(iter(val_data_loader))
+    yhat = model(*batch[:-1])
+    logger.info(f'Dumping the SimpDOM model visualization into: ./{file_name}.{fmt}')
+    make_dot(yhat, params=dict(list(model.named_parameters()))).render(file_name, format=fmt)
 
 def test_model(config, model=None, model_weights_file=None, test_websites=None):
     if model is None:
