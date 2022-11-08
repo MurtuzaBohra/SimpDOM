@@ -33,6 +33,7 @@ class SeqModel(pl.LightningModule):
         self.test_websites = config['test_websites']
         self.datapath = config['datapath']
         self.n_workers = config['n_workers']
+        self.learning_rate = config['learning_rate']
 
         self.char_dict = self.load_dict(config['char_dict_filename'])
         self.char_emb_dim = config['char_emb_dim']#16
@@ -58,7 +59,8 @@ class SeqModel(pl.LightningModule):
         self.word_meddings = pretrainedWordEmeddings(self.word_emb_filename)
         self.process_attrs()
 
-        self.charLevelWordEmbeddings = CharCNN(n_chars=len(self.char_dict)+2, channels=self.char_hid_dim, embedding_size=self.char_emb_dim, dropout=self.char_emb_dropout)
+        self.charLevelWordEmbeddings = CharCNN(n_chars=len(self.char_dict)+2, channels=self.char_hid_dim,
+                                               embedding_size=self.char_emb_dim, dropout=self.char_emb_dropout)
         
         self.BiLSTM = BiLSTM(self.char_hid_dim + self.word_emb_dim, self.dw)
         
@@ -81,7 +83,7 @@ class SeqModel(pl.LightningModule):
         logger.info(f'Dictionary {fname} length: {len(Dict)}')
         return Dict
         
-    def textEncoder(self, textRep):
+    def text_encoder(self, textRep):
         char_seqs, word_lens, word_embs, sent_lens = textRep
         #char_seqs (batch*sent_lens, max_word_len)
         char_embs = self.charLevelWordEmbeddings(char_seqs, word_lens)
@@ -109,9 +111,9 @@ class SeqModel(pl.LightningModule):
                         (partners_char_seqs, partners_word_lens, partners_word_embs, partners_sent_lens)]
         
         for idx in range(len(textRep_list)): # for loop for e_x, e_f and e_p.
-            e_s[:,idx*d_sem_feat: (idx+1)*d_sem_feat] = self.textEncoder(textRep_list[idx])
+            e_s[:,idx*d_sem_feat: (idx+1)*d_sem_feat] = self.text_encoder(textRep_list[idx])
         
-        e_a = self.textEncoder(( self.attrs_char_seqs, self.attrs_word_lens, self.attrs_word_embs, self.attrs_sent_lens))
+        e_a = self.text_encoder(( self.attrs_char_seqs, self.attrs_word_lens, self.attrs_word_embs, self.attrs_sent_lens))
 
         e_p = e_s[:,2* d_sem_feat: 3* d_sem_feat]
         e_cos = torch.stack([self.semantic_similarity(e_a, e_p[i,:]) for i in range(e_p.shape[0])],0)
@@ -163,7 +165,7 @@ class SeqModel(pl.LightningModule):
         self.log('avg_val_loss', val_loss_mean, sync_dist=True, batch_size=self.batch_size)      
         
     def configure_optimizers(self):
-        optimizer = torch.optim.Adam(self.parameters(), lr=1e-3)
+        optimizer = torch.optim.Adam(self.parameters(), lr=self.learning_rate)
         return optimizer
     
     def train_dataloader(self):

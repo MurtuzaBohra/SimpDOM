@@ -13,3 +13,4 @@ list_avg_pr.pkl
 *.csv
 data/_nodesDetails/
 data/groundtruth/
+data/weights_old.ckpt

@@ -1,3 +1,4 @@
+import os
 import torch
 import pickle
 import random
@@ -16,7 +17,7 @@ from Prediction.test_step import main as get_predictions
 from Utils.pretrainedGloVe import pretrainedWordEmeddings
 from Prediction.WebsiteLevel_PR_Generator import cal_PR_summary as websiteLevel_cal_PR_summary
 
-datapath = './data'
+data_path = './data'
 device = 'cpu'
 
 n_workers=0 # Important to keep this at zero as otherwise we get a shared memory error
@@ -31,13 +32,13 @@ tag_hid_dim = 30
 leaf_emb_dim = 30
 pos_emb_dim = 20
 
-char_dict_filename = f'{datapath}/English_charDict.pkl'
-tag_dict_filename = f'{datapath}/HTMLTagDict.pkl'
-word_emb_filename = f'{datapath}/glove.6B.100d.txt'
-train_model_weights_file = 'weights_wpix_manual_ckpt.ckpt'
+char_dict_filename = os.path.join(data_path, 'English_charDict.pkl')
+tag_dict_filename = os.path.join(data_path, 'HTMLTagDict.pkl')
+word_emb_filename = os.path.join(data_path, 'glove.6B.100d.txt')
+train_model_weights_file = os.path.join(data_path, 'weights.ckpt')
 pred_dump_file_name = 'test_predictions.csv'
 
-def create_config(train_websites, val_websites, test_websites, attributes):
+def create_config(train_websites, val_websites, test_websites, attributes, learning_rate = 1e-4):
     n_classes = len(attributes) + 1
     class_weights = [1, 100, 100, 100, 100]
     config = {
@@ -45,7 +46,7 @@ def create_config(train_websites, val_websites, test_websites, attributes):
         'train_websites': train_websites,
         'val_websites': val_websites,
         'test_websites': test_websites,
-        'datapath': datapath,
+        'datapath': data_path,
         'n_workers': n_workers,
         'char_emb_dim' : char_emb_dim,
         'char_hid_dim' : char_hid_dim,
@@ -59,14 +60,16 @@ def create_config(train_websites, val_websites, test_websites, attributes):
         'class_weights':class_weights,
         'char_dict_filename' : char_dict_filename,
         'tag_dict_filename': tag_dict_filename,
-        'word_emb_filename': word_emb_filename
+        'word_emb_filename': word_emb_filename,
+        'learning_rate': learning_rate
     }
     return config
 
 def train_model(config, num_train_epochs):
     logger.info('Instantiating the Model checkpoint.')
     checkpoint_callback = ModelCheckpoint(
-        filename='./data/weights',
+        dirpath=os.path.join('.', 'data'),
+        filename='weights',
         save_top_k=1,
         save_last = True,
         verbose=True,
@@ -84,9 +87,6 @@ def train_model(config, num_train_epochs):
 
     logger.info('Fitting the model')
     trainer.fit(model)
-    
-    logger.info(f'Saving the check point into: {train_model_weights_file}')
-    trainer.save_checkpoint(train_model_weights_file)
 
     return model
 
