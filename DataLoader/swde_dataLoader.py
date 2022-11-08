@@ -119,6 +119,7 @@ def collate_char_seq (list_char_seqs):
     for char_seqs in list_char_seqs:
         all_char_seqs.extend(char_seqs)
     all_char_seqs, all_word_lens = padded_tensor(all_char_seqs)
+    
     return all_char_seqs, all_word_lens
 
 def collate_fn(data):
@@ -134,15 +135,15 @@ def collate_fn(data):
     friends_word_embs, friends_sent_lens = torch.stack([node.friend_words for node in nodes],0), torch.tensor([node.friend_sent_len for node in nodes])
     partners_word_embs,partners_sent_lens = torch.stack([node.partner_words for node in nodes],0), torch.tensor([node.partner_sent_len for node in nodes])
 
-
     xpath_seqs, xpath_lens  = padded_tensor([node.xpath_seq for node in nodes])
     nodes_char_seqs, nodes_word_lens = collate_char_seq([node.node_char_seqs for node in nodes])
     friends_char_seqs, friends_word_lens = collate_char_seq([node.friend_char_seqs for node in nodes])
     partners_char_seqs, partners_word_lens = collate_char_seq([node.partner_char_seqs for node in nodes])
 
-    return xpath_seqs, xpath_lens, leaf_tag_indices, pos_indices, nodes_word_embs, nodes_sent_lens, friends_word_embs, friends_sent_lens, \
-    partners_word_embs, partners_sent_lens, nodes_char_seqs, nodes_word_lens, friends_char_seqs, friends_word_lens, \
-    partners_char_seqs, partners_word_lens, labels
+    return xpath_seqs, xpath_lens, leaf_tag_indices, pos_indices, \
+           nodes_word_embs, nodes_sent_lens, friends_word_embs, friends_sent_lens, partners_word_embs, partners_sent_lens, \
+           nodes_char_seqs, nodes_word_lens, friends_char_seqs, friends_word_lens, partners_char_seqs, partners_word_lens, \
+           labels
 
 def get_attrs_encoding(attributes, WordEmeddings):
     attrs_char_seqs = []
@@ -241,9 +242,10 @@ def collate_fn_test(data):
     partners_char_seqs, partners_word_lens = collate_char_seq([node.partner_char_seqs for node in nodes])
 
     #attrs_encoding = [attrs_word_embs, attrs_char_seqs, attrs_word_lens]
-    return raw_nodes, xpath_seqs, xpath_lens, leaf_tag_indices, pos_indices, nodes_word_embs, nodes_sent_lens, friends_word_embs, friends_sent_lens, \
-    partners_word_embs, partners_sent_lens, nodes_char_seqs, nodes_word_lens, friends_char_seqs, friends_word_lens, \
-    partners_char_seqs, partners_word_lens, labels
+    return raw_nodes, xpath_seqs, xpath_lens, leaf_tag_indices, pos_indices, \
+           nodes_word_embs, nodes_sent_lens, friends_word_embs, friends_sent_lens, partners_word_embs, partners_sent_lens, \
+           nodes_char_seqs, nodes_word_lens, friends_char_seqs, friends_word_lens, partners_char_seqs, partners_word_lens, \
+           labels
 
 class swde_data_test(Dataset):
     def __init__(self, websites, datapath, cDict, tDict, n_gpus, WordEmeddings):
