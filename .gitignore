@@ -17,3 +17,4 @@ data/weights_old.ckpt
 data/last.ckpt
 model_structure
 model_structure.png
+data/movie/
