@@ -80,7 +80,7 @@ def loadDataset( websites, isValidataion, datapath='/tmp'):
     nodes = {}
     sample_idx = 0
     for website in tqdm(websites, desc='Web sites'):
-        key = f'{datapath}/nodesDetails/{website}.pkl'
+        key = f'{datapath}/node_details/{website}.pkl'
         data = pickle.load(open(key,'rb'))
         pageIDs = list(data.keys())
         random.shuffle(pageIDs)
@@ -194,7 +194,7 @@ def loadDataset_test( websites, datapath='/tmp'):
     raw_nodes = {}
     sample_idx = 0
     for website in tqdm(websites, desc='Web site'):
-        key = f'{datapath}/nodesDetails/{website}.pkl'
+        key = f'{datapath}/node_details/{website}.pkl'
         data = pickle.load(open(key,'rb'))
         pageIDs = list(data.keys())
         for pageID in tqdm(pageIDs, desc=f'Web pages for: "{website}"'):

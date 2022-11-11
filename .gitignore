@@ -18,3 +18,7 @@ data/last.ckpt
 model_structure
 model_structure.png
 data/movie/
+data/node_details/
+data/weights_*.ckpt
+data/English_charDict.pkl
+data/HTMLTagDict.pkl
