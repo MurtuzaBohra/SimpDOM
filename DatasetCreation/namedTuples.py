@@ -1,6 +1,6 @@
 import collections
 
-DOMNodeDetails = collections.namedtuple('DOMNodeDetails', 'absxpath text isVariableNode friendNodes partnerNodes label')
+DOMNodeDetails = collections.namedtuple('DOMNodeDetails', 'absxpath text attributes isVariableNode friendNodes partnerNodes label')
 
 DataLoaderNodeDetail = collections.namedtuple('DataLoaderNodeDetail',
                                               'page_ID xpath_seq leaf_tag_index pos_index '\

@@ -19,6 +19,13 @@ model_structure
 model_structure.png
 data/movie/
 data/node_details/
-data/weights_*.ckpt
+data/weights*.ckpt
 data/English_charDict.pkl
 data/HTMLTagDict.pkl
+data/book/
+data/camera/
+data/job/
+data/nbaplayer/
+data/restaurant/
+data/university/
+data/last*.ckpt

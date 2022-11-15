@@ -25,16 +25,19 @@ def __count_xpath_text(html_filename, xpath_text_counts):
     # Parse the HTML document
     root = DOMTree('xxx', str(html_content)).get_page_root()
     
-    # Extract the text nodes
-    node_dict = get_text_nodes(root)
-    
-    # Iterate over the text nodes and update the node counts
-    for nodeDetail in node_dict.values():
-        key = (nodeDetail.absxpath, nodeDetail.text)
-        if key in xpath_text_counts:
-            xpath_text_counts[key] += 1
-        else:
-            xpath_text_counts[key] = 1
+    if root is not None:
+        # Extract the text nodes
+        node_dict = get_text_nodes(root)
+
+        # Iterate over the text nodes and update the node counts
+        for node_detail in node_dict.values():
+            key = (node_detail.absxpath, node_detail.text)
+            if key in xpath_text_counts:
+                xpath_text_counts[key] += 1
+            else:
+                xpath_text_counts[key] = 1
+    else:
+        logger.warning(f'Empty root document for: {html_filename}, skipping!')
     
     return xpath_text_counts
 

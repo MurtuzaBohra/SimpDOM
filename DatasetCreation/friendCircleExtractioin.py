@@ -83,6 +83,7 @@ def __sort_closest_descendents(node_details, descendents, node_absxpath):
 
 def __get_partner_friend_node_rep(node_details, node_id):
     # The partner/prient node representation is limited to its abstract xpath and the node text
+    # TODO: Extend the representation by the node attributes
     return (node_details[node_id].absxpath, node_details[node_id].text)
 
 def __update_Df_and_Dp_in_node_details(node_details, anc_xpath_to_node_ids_map, max_num_ancestors, max_num_friends):
