@@ -87,7 +87,7 @@ class SeqModel(pl.LightningModule):
         char_seqs, word_lens, word_embs, sent_lens = textRep
         #char_seqs (batch*sent_lens, max_word_len)
         char_embs = self.charLevelWordEmbeddings(char_seqs, word_lens)
-        char_embs = char_embs.view(word_embs.shape[0], word_embs.shape[1],-1)
+        char_embs = char_embs.view(word_embs.shape[0], word_embs.shape[1], -1)
 
         textEmbedding = torch.cat((char_embs, word_embs), dim=-1)
         #textEmbedding -> (batch, #max_sent_len, char_hid_dim + word_emb)
@@ -97,25 +97,25 @@ class SeqModel(pl.LightningModule):
 
     def semantic_similarity(self, e_a, e_p):
         e_p = torch.unsqueeze(e_p, dim=0)
-        return F.cosine_similarity(e_p,e_a)
+        return F.cosine_similarity(e_p, e_a)
 
     def forward(self, xpath_seqs, xpath_lens, leaf_tag_indices, pos_indices, \
                 nodes_word_embs, nodes_sent_lens, friends_word_embs, friends_sent_lens, partners_word_embs, partners_sent_lens, \
                 nodes_char_seqs, nodes_word_lens, friends_char_seqs, friends_word_lens, partners_char_seqs, partners_word_lens):
 
-        d_sem_feat = self.dw*self.n_direction # d_sem_feat is dimension of semantic features.
-        e_s = torch.zeros(leaf_tag_indices.shape[0],d_sem_feat*3).to(device)
+        d_sem_feat = self.dw * self.n_direction # d_sem_feat is dimension of semantic features.
+        e_s = torch.zeros(leaf_tag_indices.shape[0], d_sem_feat*3).to(device)
 
         textRep_list = [(nodes_char_seqs, nodes_word_lens, nodes_word_embs, nodes_sent_lens), \
                         (friends_char_seqs, friends_word_lens, friends_word_embs, partners_sent_lens),\
                         (partners_char_seqs, partners_word_lens, partners_word_embs, partners_sent_lens)]
         
         for idx in range(len(textRep_list)): # for loop for e_x, e_f and e_p.
-            e_s[:,idx*d_sem_feat: (idx+1)*d_sem_feat] = self.text_encoder(textRep_list[idx])
+            e_s[:, idx*d_sem_feat : (idx+1)*d_sem_feat] = self.text_encoder(textRep_list[idx])
         
         e_a = self.text_encoder(( self.attrs_char_seqs, self.attrs_word_lens, self.attrs_word_embs, self.attrs_sent_lens))
 
-        e_p = e_s[:,2* d_sem_feat: 3* d_sem_feat]
+        e_p = e_s[:, 2* d_sem_feat : 3* d_sem_feat]
         e_cos = torch.stack([self.semantic_similarity(e_a, e_p[i,:]) for i in range(e_p.shape[0])],0)
 
         e_xpath = self.BiLSTM_xpath(xpath_seqs, xpath_lens) # e_xpath.shape = tag_hid_dim*2
