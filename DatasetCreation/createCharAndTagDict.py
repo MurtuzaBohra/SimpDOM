@@ -1,69 +1,86 @@
-import pickle
-import pandas as pd
+import os
 import re
 import sys
-sys.path.append('/Users/bmurtuza/Documents/Research/code/site_agnostic_extraction/src/SiteAgnosticClosedIE')
+import pickle
 
-Datapath = '/Users/bmurtuza/Documents/Research/data/wpix3_uec/wpix3/data/SimpDOM'
-MIN_DOCUMENT_FREQUENCY = 10
+import pandas as pd
+from tqdm.notebook import tqdm
 
-# websites = ['auto-kbb','auto-autoweb','auto-aol','auto-yahoo','auto-motortrend','auto-autobytel','auto-carquotes','auto-cars','auto-msn','auto-automotive']
+from Utils.logger import logger
+from DatasetCreation.helperFunctions import get_site_info
+from DatasetCreation.helperFunctions import remove_hidden_dir
 
-def addToCharDictionary(text, charFreq):
-    uniqueChars = set(text.lower())
-    for char in uniqueChars:
-        try:
-            charFreq[char] +=1
-        except:
-            charFreq[char] = 1
-    return charFreq
+#sys.path.append('/Users/bmurtuza/Documents/Research/code/site_agnostic_extraction/src/SiteAgnosticClosedIE')
 
-def getTagsFromAbsxpath(absxpath):
-    tags = []
-    for tagWithCount in absxpath.split('/')[1:]: # tagWithCount div[*]
-        tag = re.search(r'[a-z]+',tagWithCount).group(0)
-        tags.append(tag)
-    return set(tags)
+data_path = '../data'
+vertical = 'auto'
 
-def addToTagDictionary(absxpath, tagFreq):
-    uniqueTags = getTagsFromAbsxpath(absxpath)
-    for tag in uniqueTags:
-        try:
-            tagFreq[tag] +=1
-        except:
-            tagFreq[tag] = 1
-    return tagFreq
+def __record_frequences(elements, frequences_map):
+    for elem in elements:
+        if elem in frequences_map:
+            frequences_map[elem] +=1
+        else:
+            frequences_map[elem] = 1
 
-def getDictAfterThresholding(freqDict):
-    Dict = {}
-    Index = 1
-    for token in freqDict.keys():
-        if freqDict[token]>=MIN_DOCUMENT_FREQUENCY:
-            Dict[token]=Index
-            Index+=1
-    return Dict
+def __record_char_frequences(text, char_freqs):
+    __record_frequences(set(text.lower()), char_freqs)
 
-def main(Datapath, websites):
-    charFreq = {}
-    tagFreq ={}
-    for website in websites:
-        print(website)
-        nodesDetailsAllPages = pickle.load(open('{}/nodesDetails/{}.pkl'.format(Datapath, website), 'rb'))
-        for page in nodesDetailsAllPages.values():
-            for node in page.values():
-                charFreq = addToCharDictionary(node.text, charFreq)
-                tagFreq = addToTagDictionary(node.absxpath, tagFreq)
-    charDict = getDictAfterThresholding(charFreq)
-    tagDict = getDictAfterThresholding(tagFreq)
-    return charDict,tagDict
+def __get_xpath_tags(absxpath):
+    # Get all the xpath tags, but the first element is ignored as it is an 
+    # empty string ''. Note that, tag_with_count can be of a form like: div[*]
+    return {re.search(r'[a-z]+', tag_with_count).group(0) for tag_with_count in absxpath.split('/')[1:]}
+
+def __record_tag_frequences(absxpath, tag_freqs):
+    __record_frequences(__get_xpath_tags(absxpath), tag_freqs)
+
+def __get_tokens_dictionary(freq_dict, threshold):
+    # Define the index incrementing function
+    index = 0
+    def get_next_id():
+        nonlocal index
+        index += 1
+        return index
+    
+    # Return the dictionary of the token to unique id mapping
+    return {token : get_next_id() for token, frequency in freq_dict.items() if frequency >= threshold}
+
+def __dump_dictionary_file(data_dict, data_path, file_name, desc):
+    dump_file_name = os.path.join(data_path, f'{file_name}.pkl')
+    logger.info(f'Dumping {desc} of: {len(data_dict)} elements into: {dump_file_name}')
+    pickle.dump(data_dict, open(dump_file_name, 'wb'))
+
+def create_char_and_tag_dict(data_path, vertical, threshold=10):
+    # Get the list of the vertical's web-site directory names
+    website_dirs = remove_hidden_dir(os.listdir(os.path.join(data_path, vertical)))
+    logger.info(f'The character and tag dictionary frequency filtering threshold: {threshold}')
+
+    # Default initialise the dictionaries
+    char_freqs, tag_freqs = {}, {}
+    
+    # Iterate over the vertical's web site directories
+    for dir_name in tqdm(website_dirs, desc='Web sites'):
+        # Get the main site info
+        website, _, _, _ = get_site_info(data_path, vertical, dir_name)
+
+        # Read the pre-generated node details file for the website pages
+        dump_file_name = os.path.join(data_path, 'node_details', f'{website}.pkl')
+        website_pages_node_details = pickle.load(open(dump_file_name, 'rb'))
+
+        # Iterate over the web pages
+        for page_nodes in tqdm(website_pages_node_details.values(), desc=f'Pages for website: {website}'):
+            # Iterate over web page's node details
+            for node in page_nodes.values():
+                # Update the char frequences
+                __record_char_frequences(node.text, char_freqs)
+                # Update the tag frequences
+                __record_tag_frequences(node.absxpath, tag_freqs)
+    
+    # Do the threshold filtering of the characters and tags
+    char_dict = __get_tokens_dictionary(char_freqs, threshold)
+    tag_dict = __get_tokens_dictionary(tag_freqs, threshold)
+
+    __dump_dictionary_file(char_dict, data_path, 'English_charDict', 'English character dictionary')
+    __dump_dictionary_file(tag_dict, data_path, 'HTMLTagDict', 'HTML tags dictionary')
 
 if __name__=="__main__":
-    charDict, tagDict = main(Datapath, websites)
-    print('size of char vocab - {}'.format(len(charDict)))
-    print(charDict)
-    print('===========================')
-    print('size of tag vocab - {}'.format(len(tagDict)))
-    print(tagDict)
-    pickle.dump(charDict, open('{}/English_charDict.pkl'.format(Datapath), 'wb'))
-    pickle.dump(tagDict, open('{}/HTMLTagDict.pkl'.format(Datapath), 'wb'))
-
+    create_char_and_tag_dict(data_path, vertical)

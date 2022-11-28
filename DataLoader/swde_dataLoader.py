@@ -1,33 +1,46 @@
-import pickle
-import numpy as np
 import re
 import torch
+import pickle
 import random
+
+import numpy as np
+
+from tqdm.notebook import tqdm
 from torch.utils.data.dataset import Dataset
-from DataLoader.utils import sort_and_pad, padded_tensor
+
+from Utils.logger import logger
+from DataLoader.utils import sort_and_pad
+from DataLoader.utils import padded_tensor
 from DatasetCreation.namedTuples import DataLoaderNodeDetail
 
 charDict ={}
 tagDict ={}
 N_GPUS=1
 MAX_SENT_LEN = 15
-MAX_POS =99# range of relative position
+MAX_POS =99 # range of relative position
 random.seed(7)
 #----------------------------------------------------------------------
 #----------------------------------------------------------------------
 
+__char_seq_ten_cach = dict()
+
 def _get_char_seq(text):
     text = text.lower()
-    char_seq = []
-    if len(text)==0:
-        return torch.tensor([len(charDict)+1])
-    for char in str(text):
-        try:
-            char_index = charDict[char]
-        except:
-            char_index = len(charDict)+1
-        char_seq.append(char_index)
-    return torch.tensor(char_seq)
+    
+    if text:
+        # Look up inside the cache
+        char_seq_ten = __char_seq_ten_cach.get(text, None)
+
+        if char_seq_ten is None:
+            # Compute the char sequence
+            char_seq_ten = torch.tensor([charDict.get(char, len(charDict) + 1) for char in str(text)])
+            
+            # Store the sequence
+            __char_seq_ten_cach[text] = char_seq_ten
+    else:
+        char_seq_ten = torch.tensor([len(charDict) + 1])
+    
+    return char_seq_ten
 
 def _get_xpath_seq(absxpath):
     xpath_seq = []
@@ -41,26 +54,39 @@ def _get_xpath_seq(absxpath):
             xpath_seq.append(tag_index)
     return torch.tensor(xpath_seq)
 
+UNK_WORD = 'unk'
+UNK_WORDS = [UNK_WORD for _ in range(MAX_SENT_LEN)]
+UNK_WORD_CHAR_SEQS = [_get_char_seq(UNK_WORD) for _ in range(MAX_SENT_LEN)]
+
 def _get_Text_representation(text):
-    words = text.split()
-    max_words = min(MAX_SENT_LEN, len(words))
-    words = words[:max_words]+['ukn' for i in range(MAX_SENT_LEN-max_words)]
-    list_char_sequences = [_get_char_seq(word) for word in words]
-    words_List = words
-    max_words = max(max_words, 1) # this is to ensure sent_len is atleast 1.
-    return list_char_sequences, words_List, max_words
+    # Split into words limiting the sentence length
+    words = text.split()[:MAX_SENT_LEN]
+    
+    # Limit the number of words
+    num_words = len(words)
+    
+    # Get the number of unk words to pad with
+    unk_words_to_add = (MAX_SENT_LEN-num_words)
+    
+    # Pad with 'unk' words
+    words_List = words + UNK_WORDS[:unk_words_to_add]
+    
+    # Get the word character sequences
+    list_char_seqs = [_get_char_seq(word) for word in words] + UNK_WORD_CHAR_SEQS[:unk_words_to_add]
+
+    return list_char_seqs, words_List, max(num_words, 1)
 
 def loadDataset( websites, isValidataion, datapath='/tmp'):
     nodes = {}
     sample_idx = 0
-    for website in websites:
-        key = '{}/nodesDetails/{}.pkl'.format(datapath, website)
+    for website in tqdm(websites, desc='Web sites'):
+        key = f'{datapath}/node_details/{website}.pkl'
         data = pickle.load(open(key,'rb'))
         pageIDs = list(data.keys())
         random.shuffle(pageIDs)
         if isValidataion:
             pageIDs = pageIDs[:int(len(pageIDs)*0.1)]
-        for pageID in pageIDs:
+        for pageID in tqdm(pageIDs, desc=f'Web pages for: "{website}"'):
             nodeIDs = list(data[pageID].keys())
             max_nodeID = max(nodeIDs)
             for nodeID in nodeIDs:
@@ -93,8 +119,8 @@ def collate_char_seq (list_char_seqs):
     for char_seqs in list_char_seqs:
         all_char_seqs.extend(char_seqs)
     all_char_seqs, all_word_lens = padded_tensor(all_char_seqs)
+    
     return all_char_seqs, all_word_lens
-
 
 def collate_fn(data):
     nodes, labels = zip(*data)
@@ -109,15 +135,15 @@ def collate_fn(data):
     friends_word_embs, friends_sent_lens = torch.stack([node.friend_words for node in nodes],0), torch.tensor([node.friend_sent_len for node in nodes])
     partners_word_embs,partners_sent_lens = torch.stack([node.partner_words for node in nodes],0), torch.tensor([node.partner_sent_len for node in nodes])
 
-
     xpath_seqs, xpath_lens  = padded_tensor([node.xpath_seq for node in nodes])
     nodes_char_seqs, nodes_word_lens = collate_char_seq([node.node_char_seqs for node in nodes])
     friends_char_seqs, friends_word_lens = collate_char_seq([node.friend_char_seqs for node in nodes])
     partners_char_seqs, partners_word_lens = collate_char_seq([node.partner_char_seqs for node in nodes])
 
-    return xpath_seqs, xpath_lens, leaf_tag_indices, pos_indices, nodes_word_embs, nodes_sent_lens, friends_word_embs, friends_sent_lens, \
-    partners_word_embs, partners_sent_lens, nodes_char_seqs, nodes_word_lens, friends_char_seqs, friends_word_lens, \
-    partners_char_seqs, partners_word_lens, labels
+    return xpath_seqs, xpath_lens, leaf_tag_indices, pos_indices, \
+           nodes_word_embs, nodes_sent_lens, friends_word_embs, friends_sent_lens, partners_word_embs, partners_sent_lens, \
+           nodes_char_seqs, nodes_word_lens, friends_char_seqs, friends_word_lens, partners_char_seqs, partners_word_lens, \
+           labels
 
 def get_attrs_encoding(attributes, WordEmeddings):
     attrs_char_seqs = []
@@ -146,7 +172,7 @@ class swde_data(Dataset):
         # self.nodes = self.loadDataset(datasetS3Bucket)
         
         self.len = len(self.nodes)
-        print(' {} - nodes are loaded in swde_dataLoader'.format(self.len))
+        logger.info(f'SWDE data loader has loaded: {self.len} nodes from: {websites}')
 
     def __getitem__(self, index):
         #self.nodes[index] = (nodeText, friendsText, partnerText, label)
@@ -167,11 +193,11 @@ def loadDataset_test( websites, datapath='/tmp'):
     nodes = {}
     raw_nodes = {}
     sample_idx = 0
-    for website in websites:
-        key = '{}/nodesDetails/{}.pkl'.format(datapath, website)
+    for website in tqdm(websites, desc='Web site'):
+        key = f'{datapath}/node_details/{website}.pkl'
         data = pickle.load(open(key,'rb'))
         pageIDs = list(data.keys())
-        for pageID in pageIDs:
+        for pageID in tqdm(pageIDs, desc=f'Web pages for: "{website}"'):
             nodeIDs = list(data[pageID].keys())
             max_nodeID = max(nodeIDs)
             for nodeID in nodeIDs:
@@ -196,7 +222,6 @@ def loadDataset_test( websites, datapath='/tmp'):
                     sample_idx+=1
     return nodes, raw_nodes
 
-
 def collate_fn_test(data):
     raw_nodes, nodes, labels = zip(*data)
     batch_size = len(labels)
@@ -217,10 +242,10 @@ def collate_fn_test(data):
     partners_char_seqs, partners_word_lens = collate_char_seq([node.partner_char_seqs for node in nodes])
 
     #attrs_encoding = [attrs_word_embs, attrs_char_seqs, attrs_word_lens]
-    return raw_nodes, xpath_seqs, xpath_lens, leaf_tag_indices, pos_indices, nodes_word_embs, nodes_sent_lens, friends_word_embs, friends_sent_lens, \
-    partners_word_embs, partners_sent_lens, nodes_char_seqs, nodes_word_lens, friends_char_seqs, friends_word_lens, \
-    partners_char_seqs, partners_word_lens, labels
-
+    return raw_nodes, xpath_seqs, xpath_lens, leaf_tag_indices, pos_indices, \
+           nodes_word_embs, nodes_sent_lens, friends_word_embs, friends_sent_lens, partners_word_embs, partners_sent_lens, \
+           nodes_char_seqs, nodes_word_lens, friends_char_seqs, friends_word_lens, partners_char_seqs, partners_word_lens, \
+           labels
 
 class swde_data_test(Dataset):
     def __init__(self, websites, datapath, cDict, tDict, n_gpus, WordEmeddings):
@@ -231,11 +256,12 @@ class swde_data_test(Dataset):
         charDict = cDict
         tagDict = tDict
         self.WordEmeddings = WordEmeddings
+        logger.info(f'Start loading data set for websites: {self.websites}')
         self.nodes, self.raw_nodes = loadDataset_test(self.websites, datapath)
         # self.nodes = self.loadDataset(datasetS3Bucket)
         
         self.len = len(self.nodes)
-        print(' {} - nodes are loaded in swde_dataLoader_test'.format(self.len))
+        logger.info(f'SWDE data test loader has loaded: {self.len} nodes from: {websites}')
 
     def __getitem__(self, index):
         #self.nodes[index] = (nodeText, friendsText, partnerText, label)
