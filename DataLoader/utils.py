@@ -76,6 +76,7 @@ def padded_tensor(tensors: List[torch.Tensor]) -> Tuple[torch.Tensor, torch.Tens
     padded = []
     for i in range(lengths.shape[0]):
         padded.append(pad(tensors[i], max_len).unsqueeze(0))
+    
     return torch.cat(padded), lengths
 
 def unsort(tensor: torch.Tensor, indices: torch.Tensor) -> torch.Tensor:
